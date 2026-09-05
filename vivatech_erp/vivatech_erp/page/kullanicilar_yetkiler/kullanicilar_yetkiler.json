@@ -1,0 +1,9 @@
+{
+  "doctype": "Page",
+  "name": "kullanicilar-yetkiler",
+  "page_name": "kullanicilar-yetkiler",
+  "title": "Kullanıcılar / Yetkiler",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [{"role": "System Manager"}]
+}

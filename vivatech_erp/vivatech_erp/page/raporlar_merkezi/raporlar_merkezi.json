@@ -1,0 +1,17 @@
+{
+  "doctype": "Page",
+  "name": "raporlar-merkezi",
+  "page_name": "raporlar-merkezi",
+  "title": "Raporlar",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Accounts User"},
+    {"role": "Accounts Manager"},
+    {"role": "Stock User"},
+    {"role": "Stock Manager"},
+    {"role": "Sales User"},
+    {"role": "Purchase User"}
+  ]
+}

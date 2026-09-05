@@ -1,0 +1,15 @@
+{
+  "doctype": "Page",
+  "name": "urun-karti",
+  "page_name": "urun-karti",
+  "title": "Ürün Kartı",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Stock User"},
+    {"role": "Stock Manager"},
+    {"role": "Sales User"},
+    {"role": "Purchase User"}
+  ]
+}

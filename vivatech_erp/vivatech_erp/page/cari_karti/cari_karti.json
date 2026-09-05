@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "cari-karti",
+  "page_name": "cari-karti",
+  "title": "Cari Kartı",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Accounts User"},
+    {"role": "Accounts Manager"}
+  ]
+}

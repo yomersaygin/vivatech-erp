@@ -1,0 +1,15 @@
+{
+  "doctype": "Page",
+  "name": "satis-merkezi",
+  "page_name": "satis-merkezi",
+  "title": "Satış",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Sales User"},
+    {"role": "Sales Manager"},
+    {"role": "Accounts User"},
+    {"role": "Accounts Manager"}
+  ]
+}

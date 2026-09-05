@@ -1,0 +1,9 @@
+{
+  "doctype": "Page",
+  "name": "ayarlar-merkezi",
+  "page_name": "ayarlar-merkezi",
+  "title": "Ayarlar",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [{"role": "System Manager"}]
+}

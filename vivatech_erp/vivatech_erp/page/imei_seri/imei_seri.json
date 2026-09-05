@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "imei-seri",
+  "page_name": "imei-seri",
+  "title": "IMEI / Seri No",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Stock User"},
+    {"role": "Stock Manager"}
+  ]
+}

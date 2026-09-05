@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "stok-depo",
+  "page_name": "stok-depo",
+  "title": "Stok / Depo",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Stock User"},
+    {"role": "Stock Manager"}
+  ]
+}

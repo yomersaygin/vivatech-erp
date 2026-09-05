@@ -1,0 +1,15 @@
+{
+  "doctype": "Page",
+  "name": "vivatech-ana-sayfa",
+  "page_name": "vivatech-ana-sayfa",
+  "title": "Vivatech ERP",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Accounts User"},
+    {"role": "Stock User"},
+    {"role": "Sales User"},
+    {"role": "Purchase User"}
+  ]
+}

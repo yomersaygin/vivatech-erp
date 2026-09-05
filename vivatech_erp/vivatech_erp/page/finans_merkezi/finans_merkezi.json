@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "finans-merkezi",
+  "page_name": "finans-merkezi",
+  "title": "Finans",
+  "module": "Vivatech ERP",
+  "standard": "Yes",
+  "roles": [
+    {"role": "System Manager"},
+    {"role": "Accounts User"},
+    {"role": "Accounts Manager"}
+  ]
+}
