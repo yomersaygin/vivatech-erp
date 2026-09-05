@@ -1,0 +1,101 @@
+name: Vivatech Real ERP Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-erp-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python source compile
+        run: python -m compileall -q vivatech_erp
+
+      - name: Clone official frappe_docker
+        run: git clone --depth 1 https://github.com/frappe/frappe_docker.git /tmp/frappe_docker
+
+      - name: Build real custom ERPNext image
+        shell: bash
+        run: |
+          cat > /tmp/apps.json <<JSON
+          [
+            {"url":"https://github.com/frappe/erpnext","branch":"version-16"},
+            {"url":"https://github.com/${{ github.repository }}.git","branch":"main"}
+          ]
+          JSON
+          DOCKER_BUILDKIT=1 docker build \
+            --secret id=apps_json,src=/tmp/apps.json \
+            --build-arg FRAPPE_PATH=https://github.com/frappe/frappe \
+            --build-arg FRAPPE_BRANCH=version-16 \
+            -t vivatech-erp-ci:realtest \
+            -f /tmp/frappe_docker/images/layered/Containerfile \
+            /tmp/frappe_docker
+          docker image inspect vivatech-erp-ci:realtest >/dev/null
+
+      - name: Start real Frappe stack
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          cat > .env <<'ENV'
+          CUSTOM_IMAGE=vivatech-erp-ci
+          CUSTOM_TAG=realtest
+          PULL_POLICY=never
+          DB_PASSWORD=admin
+          FRAPPE_SITE_NAME_HEADER=test.localhost
+          HTTP_PUBLISH_PORT=8080
+          ENV
+          docker compose --env-file .env \
+            -f compose.yaml \
+            -f overrides/compose.mariadb.yaml \
+            -f overrides/compose.redis.yaml \
+            -f overrides/compose.noproxy.yaml \
+            config > compose.ci.yaml
+          docker compose -p vivatech-ci -f compose.ci.yaml up -d --remove-orphans
+          for i in $(seq 1 60); do
+            if docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --version >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose -p vivatech-ci -f compose.ci.yaml ps
+          exit 1
+
+      - name: Create ERPNext site and install Vivatech app
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          C='docker compose -p vivatech-ci -f compose.ci.yaml'
+          $C exec -T backend bench new-site test.localhost \
+            --db-host db \
+            --db-root-username root \
+            --db-root-password admin \
+            --admin-password admin \
+            --no-mariadb-socket
+          $C exec -T backend bench --site test.localhost install-app erpnext
+          $C exec -T backend bench --site test.localhost install-app vivatech_erp
+          $C exec -T backend bench --site test.localhost migrate
+          $C exec -T backend bench --site test.localhost list-apps | tee /tmp/list-apps.txt
+          grep -qx 'erpnext' /tmp/list-apps.txt
+          grep -qx 'vivatech_erp' /tmp/list-apps.txt
+
+      - name: Run Vivatech real integration smoke
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench --site test.localhost execute vivatech_erp.tests.integration.run_all
+
+      - name: Diagnostics on failure
+        if: failure()
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml ps || true
+          docker compose -p vivatech-ci -f compose.ci.yaml logs --tail=300 backend db configurator || true
