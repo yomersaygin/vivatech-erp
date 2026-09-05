@@ -46,6 +46,64 @@ def _ensure_company():
     return COMPANY
 
 
+def _first_name(doctype, filters=None):
+    return frappe.db.get_value(doctype, filters or {}, "name")
+
+
+def _ensure_customer_group():
+    name = _first_name("Customer Group")
+    if name:
+        return name
+    doc = frappe.new_doc("Customer Group")
+    doc.customer_group_name = "Vivatech CI Customer Group"
+    doc.is_group = 0
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
+def _ensure_territory():
+    name = _first_name("Territory")
+    if name:
+        return name
+    doc = frappe.new_doc("Territory")
+    doc.territory_name = "Vivatech CI Territory"
+    doc.is_group = 0
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
+def _ensure_supplier_group():
+    name = _first_name("Supplier Group")
+    if name:
+        return name
+    doc = frappe.new_doc("Supplier Group")
+    doc.supplier_group_name = "Vivatech CI Supplier Group"
+    doc.is_group = 0
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
+def _ensure_item_group():
+    name = _first_name("Item Group")
+    if name:
+        return name
+    doc = frappe.new_doc("Item Group")
+    doc.item_group_name = "Vivatech CI Item Group"
+    doc.is_group = 0
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
+def _ensure_uom():
+    name = frappe.db.get_value("UOM", {"name": "Nos"}, "name") or _first_name("UOM")
+    if name:
+        return name
+    doc = frappe.new_doc("UOM")
+    doc.uom_name = "Nos"
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
 def _ensure_warehouse():
     existing = frappe.db.exists("Warehouse", {"warehouse_name": WAREHOUSE_NAME, "company": COMPANY})
     if existing:
@@ -58,37 +116,37 @@ def _ensure_warehouse():
     return doc.name
 
 
-def _ensure_customer():
+def _ensure_customer(customer_group, territory):
     if not frappe.db.exists("Customer", CUSTOMER):
         doc = frappe.new_doc("Customer")
         doc.customer_name = CUSTOMER
         doc.customer_type = "Company"
-        doc.customer_group = "All Customer Groups"
-        doc.territory = "All Territories"
+        doc.customer_group = customer_group
+        doc.territory = territory
         doc.insert(ignore_permissions=True)
     if not frappe.db.exists("Customer", CUSTOMER):
         raise AssertionError("Test customer was not created")
     return CUSTOMER
 
 
-def _ensure_supplier():
+def _ensure_supplier(supplier_group):
     if not frappe.db.exists("Supplier", SUPPLIER):
         doc = frappe.new_doc("Supplier")
         doc.supplier_name = SUPPLIER
-        doc.supplier_group = "All Supplier Groups"
+        doc.supplier_group = supplier_group
         doc.insert(ignore_permissions=True)
     if not frappe.db.exists("Supplier", SUPPLIER):
         raise AssertionError("Test supplier was not created")
     return SUPPLIER
 
 
-def _ensure_item():
+def _ensure_item(item_group, stock_uom):
     if not frappe.db.exists("Item", ITEM):
         doc = frappe.new_doc("Item")
         doc.item_code = ITEM
         doc.item_name = ITEM
-        doc.item_group = "All Item Groups"
-        doc.stock_uom = "Nos"
+        doc.item_group = item_group
+        doc.stock_uom = stock_uom
         doc.is_stock_item = 1
         doc.insert(ignore_permissions=True)
     return ITEM
@@ -160,10 +218,15 @@ def run():
     _ensure_country()
     _ensure_warehouse_type()
     _ensure_company()
+    customer_group = _ensure_customer_group()
+    territory = _ensure_territory()
+    supplier_group = _ensure_supplier_group()
+    item_group = _ensure_item_group()
+    stock_uom = _ensure_uom()
     warehouse = _ensure_warehouse()
-    _ensure_customer()
-    _ensure_supplier()
-    _ensure_item()
+    _ensure_customer(customer_group, territory)
+    _ensure_supplier(supplier_group)
+    _ensure_item(item_group, stock_uom)
     frappe.db.commit()
     print("SETUP_OK")
 
