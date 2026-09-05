@@ -6,18 +6,26 @@ WORKSPACE_NAME = "Vivatech ERP"
 SHORTCUTS = [
     ("Ana Sayfa", "Page", "vivatech-ana-sayfa"),
     ("Cari Kartları", "Page", "cari-karti"),
+    ("Müşteriler", "DocType", "Customer"),
     ("Tedarikçiler", "DocType", "Supplier"),
     ("Cari Hareketleri", "Report", "General Ledger"),
+    ("Tahsilat / Ödeme", "DocType", "Payment Entry"),
     ("Finans", "Page", "finans-merkezi"),
     ("Raporlar", "Page", "raporlar-merkezi"),
     ("Kullanıcılar / Yetkiler", "Page", "kullanicilar-yetkiler"),
     ("Ayarlar", "Page", "ayarlar-merkezi"),
     ("Ürünler", "Page", "urun-karti"),
+    ("Ürün Kartları", "DocType", "Item"),
     ("Stok / Depo", "Page", "stok-depo"),
+    ("Depolar", "DocType", "Warehouse"),
     ("IMEI / Seri No", "Page", "imei-seri"),
+    ("Seri Numaraları", "DocType", "Serial No"),
     ("Alış", "Page", "alis-merkezi"),
+    ("Alış Faturaları", "DocType", "Purchase Invoice"),
     ("Satış", "Page", "satis-merkezi"),
+    ("Satış Faturaları", "DocType", "Sales Invoice"),
 ]
+
 
 def _content():
     blocks = [
@@ -35,8 +43,10 @@ def _content():
     ]
     return json.dumps(blocks, ensure_ascii=False)
 
+
 def after_install():
     create_workspace()
+
 
 def create_workspace():
     if frappe.db.exists("Workspace", WORKSPACE_NAME):
@@ -51,17 +61,37 @@ def create_workspace():
     ws.is_hidden = 0
     ws.content = _content()
 
-    ws.set("shortcuts", [])
-    for label, kind, target in SHORTCUTS:
-        row = {
-            "label": label,
-            "type": kind,
-            "link_to": target,
-        }
-        if kind == "DocType":
-            row["doc_view"] = "List"
-        ws.append("shortcuts", row)
-
+    # Save Workspace first. During install-app, some Frappe/ERPNext images can
+    # fail while resolving the Workspace Shortcut child controller. Writing the
+    # child rows directly avoids that controller-load path and keeps install
+    # deterministic.
     ws.save(ignore_permissions=True)
+    _replace_shortcuts_directly(ws.name)
     frappe.db.commit()
     return ws.name
+
+
+def _replace_shortcuts_directly(workspace_name):
+    frappe.db.sql(
+        "DELETE FROM `tabWorkspace Shortcut` "
+        "WHERE parent=%s AND parenttype='Workspace' AND parentfield='shortcuts'",
+        (workspace_name,),
+    )
+
+    for idx, (label, kind, target) in enumerate(SHORTCUTS, start=1):
+        frappe.db.sql(
+            """
+            INSERT INTO `tabWorkspace Shortcut`
+                (name, parent, parenttype, parentfield, idx, label, type, link_to, doc_view)
+            VALUES (%s, %s, 'Workspace', 'shortcuts', %s, %s, %s, %s, %s)
+            """,
+            (
+                frappe.generate_hash(length=10),
+                workspace_name,
+                idx,
+                label,
+                kind,
+                target,
+                "List" if kind == "DocType" else None,
+            ),
+        )
