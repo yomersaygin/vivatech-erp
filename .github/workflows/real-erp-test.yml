@@ -110,7 +110,17 @@ jobs:
       - name: Run real purchase and sales posting test
         shell: bash
         working-directory: /tmp/frappe_docker
-        run: docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_transactions.run
+        run: |
+          set -o pipefail
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_transactions.run 2>&1 | tee "$GITHUB_WORKSPACE/runtime-transactions.log"
+
+      - name: Upload real transaction log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-transactions-log
+          path: runtime-transactions.log
+          if-no-files-found: warn
 
       - name: Diagnostics on failure
         if: failure()
