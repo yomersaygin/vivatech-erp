@@ -1,6 +1,7 @@
 import frappe
 
 
+COUNTRY = "Turkey"
 COMPANY = "Vivatech CI"
 ABBR = "VCI"
 WAREHOUSE_NAME = "CI Depo"
@@ -11,13 +12,24 @@ QTY = 5.0
 RATE = 100.0
 
 
+def _ensure_country():
+    if not frappe.db.exists("Country", COUNTRY):
+        doc = frappe.new_doc("Country")
+        doc.country_name = COUNTRY
+        doc.code = "TR"
+        doc.insert(ignore_permissions=True)
+    if not frappe.db.exists("Country", COUNTRY):
+        raise AssertionError("Test country was not created")
+    return COUNTRY
+
+
 def _ensure_company():
     if not frappe.db.exists("Company", COMPANY):
         doc = frappe.new_doc("Company")
         doc.company_name = COMPANY
         doc.abbr = ABBR
         doc.default_currency = "TRY"
-        doc.country = "Turkey"
+        doc.country = COUNTRY
         doc.create_chart_of_accounts_based_on = "Standard Template"
         doc.chart_of_accounts = "Standard"
         doc.insert(ignore_permissions=True)
@@ -135,6 +147,7 @@ def _payment(payment_type, party_type, party, reference_doctype, reference_name,
 
 
 def run():
+    _ensure_country()
     _ensure_company()
     warehouse = _ensure_warehouse()
     _ensure_customer()
