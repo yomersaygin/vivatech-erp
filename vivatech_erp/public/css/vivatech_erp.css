@@ -1,0 +1,45 @@
+.vivatech-cari { padding: 8px 0 24px 0; }
+.vivatech-cari .cari-balance { margin-top: 2px; font-weight: 700; }
+.vivatech-cari .cari-actions .btn { margin-right: 6px; margin-bottom: 6px; }
+.vivatech-cari .table td, .vivatech-cari .table th { vertical-align: middle; }
+.vivatech-product { padding: 8px 0 24px 0; }
+.vivatech-product .product-stock { margin-top: 2px; font-weight: 700; }
+.vivatech-product .product-actions .btn { margin-right: 6px; margin-bottom: 6px; }
+.vivatech-product .product-meta { margin-top: 8px; }
+.vivatech-product .warehouse-table td, .vivatech-product .warehouse-table th { vertical-align: middle; }
+.vivatech-stock { padding:8px 0 24px 0; }
+.vivatech-stock .stock-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-stock .warehouse-item-count,.vivatech-stock .warehouse-total-qty { margin-top:2px; font-weight:700; }
+.vivatech-serial { padding:8px 0 24px 0; }
+.vivatech-serial .serial-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-serial .serial-table td,.vivatech-serial .serial-table th,.vivatech-serial .history-table td,.vivatech-serial .history-table th { vertical-align:middle; }
+.vivatech-purchase { padding:8px 0 24px 0; }
+.vivatech-purchase .purchase-actions .btn,.vivatech-purchase .purchase-detail-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-purchase .purchase-table td,.vivatech-purchase .purchase-table th,.vivatech-purchase .purchase-items-table td,.vivatech-purchase .purchase-items-table th { vertical-align:middle; }
+.vivatech-sales { padding:8px 0 24px 0; }
+.vivatech-sales .sales-actions .btn,.vivatech-sales .sales-detail-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-sales .sales-table td,.vivatech-sales .sales-table th,.vivatech-sales .sales-items-table td,.vivatech-sales .sales-items-table th { vertical-align:middle; }
+.vivatech-finance { padding:8px 0 24px 0; }
+.vivatech-finance .finance-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-finance .finance-table td,.vivatech-finance .finance-table th { vertical-align:middle; }
+.vivatech-reports { padding:8px 0 24px 0; }
+.vivatech-reports .report-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-reports .report-card { border:1px solid var(--border-color); border-radius:8px; padding:12px; min-height:82px; margin-bottom:10px; }
+.vivatech-reports .report-card span { display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px; }
+.vivatech-reports .report-card strong { font-size:18px; }
+.vivatech-reports .report-table td,.vivatech-reports .report-table th { vertical-align:middle; }
+.vivatech-permissions { padding:8px 0 24px 0; }
+.vivatech-permissions .permission-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-permissions .permission-role-table td,.vivatech-permissions .permission-role-table th,.vivatech-permissions .permission-user-table td,.vivatech-permissions .permission-user-table th { vertical-align:middle; }
+.vivatech-settings { padding:8px 0 24px 0; }
+.vivatech-settings .settings-card { border:1px solid var(--border-color); border-radius:8px; padding:16px; min-height:330px; margin-bottom:12px; }
+.vivatech-settings .settings-card label { display:block; margin-top:12px; margin-bottom:4px; }
+.vivatech-settings .settings-card .btn { margin-top:16px; }
+.vivatech-settings .settings-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-home { padding:8px 0 24px 0; }
+.vivatech-home .home-card { border:1px solid var(--border-color); border-radius:8px; padding:14px; min-height:88px; margin-bottom:10px; }
+.vivatech-home .home-card span { display:block; color:var(--text-muted); font-size:12px; margin-bottom:8px; }
+.vivatech-home .home-card strong { font-size:18px; }
+.vivatech-home .module-grid .btn { min-height:52px; margin-bottom:12px; text-align:left; font-weight:600; }
+.vivatech-home .quick-actions .btn { margin-right:6px; margin-bottom:6px; }
+.vivatech-home .home-activity-table td,.vivatech-home .home-activity-table th { vertical-align:middle; }
