@@ -23,6 +23,16 @@ def _ensure_country():
     return COUNTRY
 
 
+def _ensure_warehouse_type():
+    if not frappe.db.exists("Warehouse Type", "Transit"):
+        doc = frappe.new_doc("Warehouse Type")
+        doc.name = "Transit"
+        doc.insert(ignore_permissions=True)
+    if not frappe.db.exists("Warehouse Type", "Transit"):
+        raise AssertionError("Transit Warehouse Type was not created")
+    return "Transit"
+
+
 def _ensure_company():
     if not frappe.db.exists("Company", COMPANY):
         doc = frappe.new_doc("Company")
@@ -148,12 +158,14 @@ def _payment(payment_type, party_type, party, reference_doctype, reference_name,
 
 def run():
     _ensure_country()
+    _ensure_warehouse_type()
     _ensure_company()
     warehouse = _ensure_warehouse()
     _ensure_customer()
     _ensure_supplier()
     _ensure_item()
     frappe.db.commit()
+    print("SETUP_OK")
 
     start_stock = _stock(warehouse)
 
@@ -178,6 +190,7 @@ def run():
     purchase_outstanding = float(pi.outstanding_amount or 0)
     if purchase_outstanding <= 0:
         raise AssertionError("Purchase Invoice outstanding amount did not increase")
+    print(f"PURCHASE_OK invoice={pi.name} stock_before={start_stock} stock_after={after_purchase} supplier_gl={supplier_gl}")
 
     si = frappe.new_doc("Sales Invoice")
     si.company = COMPANY
@@ -198,6 +211,7 @@ def run():
     sales_outstanding = float(si.outstanding_amount or 0)
     if sales_outstanding <= 0:
         raise AssertionError("Sales Invoice outstanding amount did not increase")
+    print(f"SALES_OK invoice={si.name} stock_after={after_sale} customer_gl={customer_gl}")
 
     cash = _cash_account()
     receipt = _payment("Receive", "Customer", CUSTOMER, "Sales Invoice", si.name, sales_outstanding, cash)
@@ -211,6 +225,7 @@ def run():
         raise AssertionError(f"Purchase Invoice payment allocation failed: {pi.outstanding_amount}")
     receipt_gl = _assert_gl("Payment Entry", receipt.name)
     supplier_payment_gl = _assert_gl("Payment Entry", supplier_payment.name)
+    print("PAYMENTS_OK")
 
     receipt.cancel()
     supplier_payment.cancel()
@@ -221,6 +236,7 @@ def run():
     final_stock = _stock(warehouse)
     if abs(final_stock - start_stock) > 0.001:
         raise AssertionError(f"Cancellation did not restore stock: {start_stock} -> {final_stock}")
+    print(f"CANCEL_OK stock_final={final_stock}")
 
     return {
         "passed": True,
