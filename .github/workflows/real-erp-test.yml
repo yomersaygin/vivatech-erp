@@ -112,7 +112,7 @@ jobs:
         working-directory: /tmp/frappe_docker
         run: |
           set -o pipefail
-          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_transactions.run 2>&1 | tee "$GITHUB_WORKSPACE/runtime-transactions.log"
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_transactions_ci.run 2>&1 | tee "$GITHUB_WORKSPACE/runtime-transactions.log"
 
       - name: Upload real transaction log
         if: always()
