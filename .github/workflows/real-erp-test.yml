@@ -67,21 +67,53 @@ jobs:
           docker compose -p vivatech-ci -f compose.ci.yaml ps
           exit 1
 
-      - name: Create ERPNext site and install Vivatech app
+      - name: Wait for MariaDB
         shell: bash
         working-directory: /tmp/frappe_docker
         run: |
-          C='docker compose -p vivatech-ci -f compose.ci.yaml'
-          $C exec -T backend bench new-site test.localhost \
+          for i in $(seq 1 60); do
+            if docker compose -p vivatech-ci -f compose.ci.yaml exec -T db mariadb-admin ping -uroot -padmin --silent; then
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -p vivatech-ci -f compose.ci.yaml logs --tail=200 db
+          exit 1
+
+      - name: Create test site
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench new-site test.localhost \
             --db-host db \
             --db-root-username root \
             --db-root-password admin \
             --admin-password admin \
             --no-mariadb-socket
-          $C exec -T backend bench --site test.localhost install-app erpnext
-          $C exec -T backend bench --site test.localhost install-app vivatech_erp
-          $C exec -T backend bench --site test.localhost migrate
-          $C exec -T backend bench --site test.localhost list-apps | tee /tmp/list-apps.txt
+
+      - name: Install ERPNext
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench --site test.localhost install-app erpnext
+
+      - name: Install Vivatech app
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench --site test.localhost install-app vivatech_erp
+
+      - name: Migrate and verify installed apps
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: |
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench --site test.localhost migrate
+          docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend \
+            bench --site test.localhost list-apps | tee /tmp/list-apps.txt
           grep -qx 'erpnext' /tmp/list-apps.txt
           grep -qx 'vivatech_erp' /tmp/list-apps.txt
 
