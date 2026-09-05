@@ -7,7 +7,7 @@ WAREHOUSE_NAME = "CI Depo"
 CUSTOMER = "Vivatech CI Müşteri"
 SUPPLIER = "Vivatech CI Tedarikçi"
 ITEM = "VVT-CI-STOK-001"
-QTY = 2.0
+QTY = 5.0
 RATE = 100.0
 
 
@@ -17,6 +17,9 @@ def _ensure_company():
         doc.company_name = COMPANY
         doc.abbr = ABBR
         doc.default_currency = "TRY"
+        doc.country = "Turkey"
+        doc.create_chart_of_accounts_based_on = "Standard Template"
+        doc.chart_of_accounts = "Standard"
         doc.insert(ignore_permissions=True)
     return COMPANY
 
@@ -41,6 +44,8 @@ def _ensure_customer():
         doc.customer_group = "All Customer Groups"
         doc.territory = "All Territories"
         doc.insert(ignore_permissions=True)
+    if not frappe.db.exists("Customer", CUSTOMER):
+        raise AssertionError("Test customer was not created")
     return CUSTOMER
 
 
@@ -50,6 +55,8 @@ def _ensure_supplier():
         doc.supplier_name = SUPPLIER
         doc.supplier_group = "All Supplier Groups"
         doc.insert(ignore_permissions=True)
+    if not frappe.db.exists("Supplier", SUPPLIER):
+        raise AssertionError("Test supplier was not created")
     return SUPPLIER
 
 
@@ -73,6 +80,19 @@ def _assert_gl(voucher_type, voucher_no):
     count = frappe.db.count("GL Entry", {"voucher_type": voucher_type, "voucher_no": voucher_no, "is_cancelled": 0})
     if count <= 0:
         raise AssertionError(f"No GL Entry created for {voucher_type} {voucher_no}")
+    return count
+
+
+def _assert_party_gl(voucher_type, voucher_no, party_type, party):
+    count = frappe.db.count("GL Entry", {
+        "voucher_type": voucher_type,
+        "voucher_no": voucher_no,
+        "party_type": party_type,
+        "party": party,
+        "is_cancelled": 0,
+    })
+    if count <= 0:
+        raise AssertionError(f"No party GL Entry for {party_type} {party} on {voucher_type} {voucher_no}")
     return count
 
 
@@ -135,10 +155,13 @@ def run():
     pi.submit()
     frappe.db.commit()
 
+    if pi.docstatus != 1 or pi.supplier != SUPPLIER:
+        raise AssertionError("Purchase Invoice did not submit against the expected supplier")
     after_purchase = _stock(warehouse)
     if abs(after_purchase - (start_stock + QTY)) > 0.001:
         raise AssertionError(f"Purchase stock mismatch: {start_stock} -> {after_purchase}")
     purchase_gl = _assert_gl("Purchase Invoice", pi.name)
+    supplier_gl = _assert_party_gl("Purchase Invoice", pi.name, "Supplier", SUPPLIER)
     purchase_outstanding = float(pi.outstanding_amount or 0)
     if purchase_outstanding <= 0:
         raise AssertionError("Purchase Invoice outstanding amount did not increase")
@@ -158,6 +181,7 @@ def run():
     if abs(after_sale - start_stock) > 0.001:
         raise AssertionError(f"Sales stock mismatch: expected {start_stock}, got {after_sale}")
     sales_gl = _assert_gl("Sales Invoice", si.name)
+    customer_gl = _assert_party_gl("Sales Invoice", si.name, "Customer", CUSTOMER)
     sales_outstanding = float(si.outstanding_amount or 0)
     if sales_outstanding <= 0:
         raise AssertionError("Sales Invoice outstanding amount did not increase")
@@ -190,6 +214,8 @@ def run():
         "company": COMPANY,
         "warehouse": warehouse,
         "item": ITEM,
+        "supplier": SUPPLIER,
+        "customer": CUSTOMER,
         "purchase_invoice": pi.name,
         "sales_invoice": si.name,
         "customer_receipt": receipt.name,
@@ -199,7 +225,9 @@ def run():
         "stock_after_sale": after_sale,
         "stock_after_cancel": final_stock,
         "purchase_gl_entries": purchase_gl,
+        "supplier_gl_entries": supplier_gl,
         "sales_gl_entries": sales_gl,
+        "customer_gl_entries": customer_gl,
         "receipt_gl_entries": receipt_gl,
         "supplier_payment_gl_entries": supplier_payment_gl,
         "payments_allocated": True,
