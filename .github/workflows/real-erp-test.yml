@@ -101,10 +101,7 @@ jobs:
       - name: Verify core ERP DocTypes
         shell: bash
         working-directory: /tmp/frappe_docker
-        run: |
-          for dt in 'Customer' 'Supplier' 'Item' 'Warehouse' 'Purchase Invoice' 'Sales Invoice' 'Payment Entry' 'Serial No'; do
-            docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute frappe.db.exists --args "['DocType','$dt']" | grep -q True
-          done
+        run: docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_validation.verify_core_doctypes
 
       - name: Diagnostics on failure
         if: failure()
