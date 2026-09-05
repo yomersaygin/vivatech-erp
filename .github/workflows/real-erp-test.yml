@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: vivatech-real-erp-main
+  cancel-in-progress: true
+
 jobs:
   real-erp-test:
     runs-on: ubuntu-latest
