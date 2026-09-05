@@ -103,6 +103,11 @@ jobs:
         working-directory: /tmp/frappe_docker
         run: docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_validation.verify_core_doctypes
 
+      - name: Run real purchase and sales posting test
+        shell: bash
+        working-directory: /tmp/frappe_docker
+        run: docker compose -p vivatech-ci -f compose.ci.yaml exec -T backend bench --site test.localhost execute vivatech_erp.tests.runtime_transactions.run
+
       - name: Diagnostics on failure
         if: failure()
         shell: bash
