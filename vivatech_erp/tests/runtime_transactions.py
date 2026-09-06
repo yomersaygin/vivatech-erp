@@ -324,6 +324,8 @@ def run():
 
     receipt.cancel()
     supplier_payment.cancel()
+    si.reload()
+    pi.reload()
     si.cancel()
     pi.cancel()
     frappe.db.commit()
