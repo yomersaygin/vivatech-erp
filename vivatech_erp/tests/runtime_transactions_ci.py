@@ -26,6 +26,15 @@ def _ensure_current_fiscal_year():
     return doc.name
 
 
+def _ensure_test_defaults():
+    # The CI site's seed defaults can use a currency different from the
+    # dedicated Vivatech test company. Keep document defaults aligned with
+    # the company's TRY ledgers so ERPNext v16 validates party accounts.
+    frappe.db.set_single_value("Global Defaults", "default_currency", "TRY")
+    frappe.db.commit()
+
+
 def run():
     _ensure_current_fiscal_year()
+    _ensure_test_defaults()
     return runtime_transactions.run()
