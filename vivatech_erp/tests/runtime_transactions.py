@@ -229,6 +229,7 @@ def _payment(payment_type, party_type, party, reference_doctype, reference_name,
         "reference_name": reference_name,
         "allocated_amount": amount,
     })
+    doc.setup_party_account_field()
     doc.set_missing_values()
     doc.insert(ignore_permissions=True)
     doc.submit()
