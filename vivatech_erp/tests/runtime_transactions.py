@@ -46,6 +46,13 @@ def _ensure_company():
     return COMPANY
 
 
+def _company_currency():
+    currency = frappe.db.get_value("Company", COMPANY, "default_currency")
+    if not currency:
+        raise AssertionError("Test company has no default currency")
+    return currency
+
+
 def _first_name(doctype, filters=None):
     return frappe.db.get_value(doctype, filters or {}, "name")
 
@@ -218,6 +225,7 @@ def run():
     _ensure_country()
     _ensure_warehouse_type()
     _ensure_company()
+    company_currency = _company_currency()
     customer_group = _ensure_customer_group()
     territory = _ensure_territory()
     supplier_group = _ensure_supplier_group()
@@ -228,13 +236,15 @@ def run():
     _ensure_supplier(supplier_group)
     _ensure_item(item_group, stock_uom)
     frappe.db.commit()
-    print("SETUP_OK")
+    print(f"SETUP_OK currency={company_currency}")
 
     start_stock = _stock(warehouse)
 
     pi = frappe.new_doc("Purchase Invoice")
     pi.company = COMPANY
     pi.supplier = SUPPLIER
+    pi.currency = company_currency
+    pi.conversion_rate = 1
     pi.update_stock = 1
     pi.set_warehouse = warehouse
     pi.append("items", {"item_code": ITEM, "qty": QTY, "rate": RATE, "warehouse": warehouse})
@@ -258,6 +268,8 @@ def run():
     si = frappe.new_doc("Sales Invoice")
     si.company = COMPANY
     si.customer = CUSTOMER
+    si.currency = company_currency
+    si.conversion_rate = 1
     si.update_stock = 1
     si.set_warehouse = warehouse
     si.append("items", {"item_code": ITEM, "qty": QTY, "rate": RATE, "warehouse": warehouse})
