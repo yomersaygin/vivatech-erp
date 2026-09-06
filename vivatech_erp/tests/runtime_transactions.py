@@ -111,6 +111,21 @@ def _ensure_uom():
     return doc.name
 
 
+def _ensure_selling_price_list(currency):
+    name = frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name")
+    if name:
+        return name
+    doc = frappe.new_doc("Price List")
+    doc.price_list_name = "Vivatech CI Selling"
+    doc.selling = 1
+    doc.buying = 0
+    doc.enabled = 1
+    if frappe.get_meta("Price List").has_field("currency"):
+        doc.currency = currency
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
 def _ensure_warehouse():
     existing = frappe.db.exists("Warehouse", {"warehouse_name": WAREHOUSE_NAME, "company": COMPANY})
     if existing:
@@ -231,6 +246,7 @@ def run():
     supplier_group = _ensure_supplier_group()
     item_group = _ensure_item_group()
     stock_uom = _ensure_uom()
+    selling_price_list = _ensure_selling_price_list(company_currency)
     warehouse = _ensure_warehouse()
     _ensure_customer(customer_group, territory)
     _ensure_supplier(supplier_group)
@@ -270,6 +286,9 @@ def run():
     si.customer = CUSTOMER
     si.currency = company_currency
     si.conversion_rate = 1
+    si.selling_price_list = selling_price_list
+    si.price_list_currency = company_currency
+    si.plc_conversion_rate = 1
     si.update_stock = 1
     si.set_warehouse = warehouse
     si.append("items", {"item_code": ITEM, "qty": QTY, "rate": RATE, "warehouse": warehouse})
