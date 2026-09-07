@@ -1,5 +1,5 @@
 #define MyAppName "Vivatech ERP"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Vivatech"
 #define MyAppExeName "VivatechERP.exe"
 
@@ -24,6 +24,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Source: "..\EXE\dist\VivatechERP.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\CONFIG\vivatech.json"; DestDir: "{app}\CONFIG"; Flags: ignoreversion
 Source: "..\RUNTIME\FIRST-RUN-SETUP.ps1"; DestDir: "{app}\RUNTIME"; Flags: ignoreversion
+Source: "..\RUNTIME\BUNDLED\frappe_docker.zip"; DestDir: "{app}\RUNTIME\BUNDLED"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -43,7 +44,7 @@ begin
     exit;
   if not FileExists(ExpandConstant('{pf}\Docker\Docker\Docker Desktop.exe')) then
   begin
-    if MsgBox('Vivatech ERP, mevcut mimaride Docker Desktop gerektirir.' + #13#10 + #13#10 +
+    if MsgBox('Vivatech ERP mevcut mimaride Docker Desktop gerektirir.' + #13#10 + #13#10 +
       'Docker Desktop bu bilgisayarda bulunamadı. Kuruluma yine de devam edilsin mi?',
       mbConfirmation, MB_YESNO) = IDNO then
       Result := False;
