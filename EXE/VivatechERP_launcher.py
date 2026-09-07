@@ -82,11 +82,11 @@ def wait_for_docker(timeout=120) -> bool:
 def compose_file_path(root: Path, cfg: dict) -> tuple[Path, Path]:
     runtime_dir = root / cfg.get("runtime_dir", "RUNTIME/frappe_docker")
     preferred = cfg.get("compose_file", "compose.vivatech.yaml")
-    candidates = [runtime_dir / preferred, runtime_dir / "compose.yaml", runtime_dir / "docker-compose.yml", runtime_dir / "pwd.yml"]
-    for file in candidates:
-        if file.exists():
-            return runtime_dir, file
     return runtime_dir, runtime_dir / preferred
+
+
+def first_run_complete(root: Path) -> bool:
+    return (root / "RUNTIME" / ".vivatech-installed").exists()
 
 
 def first_run_setup(root: Path) -> None:
@@ -104,13 +104,13 @@ def first_run_setup(root: Path) -> None:
         text=True,
         creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
     )
-    if r.returncode != 0:
+    if r.returncode != 0 or not first_run_complete(root):
         raise RuntimeError("İlk kurulum tamamlanamadı. RUNTIME\\first-run.log dosyasını kontrol edin.")
 
 
 def start_stack(root: Path, cfg: dict):
     runtime_dir, compose_file = compose_file_path(root, cfg)
-    if not runtime_dir.exists() or not compose_file.exists():
+    if not first_run_complete(root):
         first_run_setup(root)
         runtime_dir, compose_file = compose_file_path(root, cfg)
     if not runtime_dir.exists() or not compose_file.exists():
@@ -159,7 +159,7 @@ def main() -> int:
     cfg = load_config(root)
     url = cfg.get("url", "http://localhost:8080")
     timeout = int(cfg.get("health_timeout_seconds", DEFAULT_TIMEOUT))
-    if health_ok(url):
+    if health_ok(url) and first_run_complete(root):
         if cfg.get("open_browser", True):
             webbrowser.open(url)
         return 0
