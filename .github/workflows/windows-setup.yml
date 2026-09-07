@@ -35,12 +35,25 @@ jobs:
           python -m PyInstaller --clean --noconfirm VivatechERP.spec
           if (-not (Test-Path .\dist\VivatechERP.exe)) { throw 'VivatechERP.exe was not created' }
 
+      - name: Bundle Frappe Docker runtime files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .\RUNTIME\BUNDLED | Out-Null
+          Invoke-WebRequest -Uri 'https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip' -OutFile .\RUNTIME\BUNDLED\frappe_docker.zip
+          if (-not (Test-Path .\RUNTIME\BUNDLED\frappe_docker.zip)) { throw 'Bundled frappe_docker.zip missing' }
+          if ((Get-Item .\RUNTIME\BUNDLED\frappe_docker.zip).Length -lt 10000) { throw 'Bundled frappe_docker.zip is unexpectedly small' }
+
       - name: Validate packaged support files
         shell: pwsh
         run: |
           if (-not (Test-Path .\CONFIG\vivatech.json)) { throw 'CONFIG/vivatech.json missing' }
           if (-not (Test-Path .\RUNTIME\FIRST-RUN-SETUP.ps1)) { throw 'RUNTIME/FIRST-RUN-SETUP.ps1 missing' }
-          $null = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\RUNTIME\FIRST-RUN-SETUP.ps1), [ref]$null, [ref]$null)
+          if (-not (Test-Path .\RUNTIME\BUNDLED\frappe_docker.zip)) { throw 'Bundled runtime archive missing' }
+          $errors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\RUNTIME\FIRST-RUN-SETUP.ps1), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
+          python -m py_compile .\EXE\VivatechERP_launcher.py
 
       - name: Install Inno Setup
         shell: pwsh
@@ -59,9 +72,10 @@ jobs:
           Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
           $p = Start-Process '.\INSTALLER\output\VivatechERP-Setup.exe' -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$target") -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "Installer exit code: $($p.ExitCode)" }
-          @('VivatechERP.exe','CONFIG\vivatech.json','RUNTIME\FIRST-RUN-SETUP.ps1') | ForEach-Object {
+          @('VivatechERP.exe','CONFIG\vivatech.json','RUNTIME\FIRST-RUN-SETUP.ps1','RUNTIME\BUNDLED\frappe_docker.zip') | ForEach-Object {
             if (-not (Test-Path (Join-Path $target $_))) { throw "Installed file missing: $_" }
           }
+          if ((Get-Item (Join-Path $target 'RUNTIME\BUNDLED\frappe_docker.zip')).Length -lt 10000) { throw 'Installed runtime archive is unexpectedly small' }
 
       - name: Generate SHA256
         shell: pwsh
