@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 
 APP_NAME = "Vivatech ERP"
-DEFAULT_TIMEOUT = 180
+DEFAULT_TIMEOUT = 300
 
 
 def app_root() -> Path:
@@ -26,10 +26,11 @@ def load_config(root: Path | None = None) -> dict:
             "url": "http://localhost:8080",
             "runtime_dir": "RUNTIME/frappe_docker",
             "compose_file": "compose.vivatech.yaml",
+            "compose_project": "vivatech",
             "health_timeout_seconds": DEFAULT_TIMEOUT,
             "open_browser": True,
         }
-    with path.open("r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8-sig") as f:
         return json.load(f)
 
 
@@ -80,7 +81,7 @@ def wait_for_docker(timeout=120) -> bool:
 
 def compose_file_path(root: Path, cfg: dict) -> tuple[Path, Path]:
     runtime_dir = root / cfg.get("runtime_dir", "RUNTIME/frappe_docker")
-    preferred = cfg.get("compose_file", "compose.yaml")
+    preferred = cfg.get("compose_file", "compose.vivatech.yaml")
     candidates = [runtime_dir / preferred, runtime_dir / "compose.yaml", runtime_dir / "docker-compose.yml", runtime_dir / "pwd.yml"]
     for file in candidates:
         if file.exists():
@@ -88,12 +89,32 @@ def compose_file_path(root: Path, cfg: dict) -> tuple[Path, Path]:
     return runtime_dir, runtime_dir / preferred
 
 
+def first_run_setup(root: Path) -> None:
+    script = root / "RUNTIME" / "FIRST-RUN-SETUP.ps1"
+    if not script.exists():
+        raise RuntimeError("İlk kurulum dosyası bulunamadı. VivatechERP-Setup.exe ile yeniden kurun.")
+    if os.name != "nt":
+        raise RuntimeError("İlk kurulum yalnızca Windows üzerinde destekleniyor.")
+    powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+    if not powershell:
+        raise RuntimeError("Windows PowerShell bulunamadı.")
+    r = subprocess.run(
+        [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
+        cwd=str(root),
+        text=True,
+        creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+    )
+    if r.returncode != 0:
+        raise RuntimeError("İlk kurulum tamamlanamadı. RUNTIME\\first-run.log dosyasını kontrol edin.")
+
+
 def start_stack(root: Path, cfg: dict):
     runtime_dir, compose_file = compose_file_path(root, cfg)
-    if not runtime_dir.exists():
-        raise RuntimeError("ERP runtime henüz kurulmamış. RUNTIME\\FIRST-RUN-SETUP.bat dosyasını çalıştırın.")
-    if not compose_file.exists():
-        raise RuntimeError("compose.vivatech.yaml bulunamadı. RUNTIME\\FIRST-RUN-SETUP.bat ile ilk kurulumu tamamlayın.")
+    if not runtime_dir.exists() or not compose_file.exists():
+        first_run_setup(root)
+        runtime_dir, compose_file = compose_file_path(root, cfg)
+    if not runtime_dir.exists() or not compose_file.exists():
+        raise RuntimeError("ERP runtime kurulumu tamamlanamadı.")
     project = cfg.get("compose_project", "vivatech")
     r = run_hidden(["docker", "compose", "-p", project, "-f", str(compose_file), "up", "-d"], cwd=str(runtime_dir), timeout=180)
     if r.returncode != 0:
@@ -135,7 +156,7 @@ def show_error(message: str):
 
 def main() -> int:
     root = app_root()
-    cfg = load_config()
+    cfg = load_config(root)
     url = cfg.get("url", "http://localhost:8080")
     timeout = int(cfg.get("health_timeout_seconds", DEFAULT_TIMEOUT))
     if health_ok(url):
@@ -145,7 +166,7 @@ def main() -> int:
     if not docker_available():
         start_docker_desktop()
         if not wait_for_docker(timeout=120):
-            show_error("Docker çalışmıyor.\n\nDocker Desktop'ı başlatın ve tekrar deneyin.")
+            show_error("Docker çalışmıyor.\n\nDocker Desktop'ı kurun/başlatın ve tekrar deneyin.")
             return 10
     try:
         start_stack(root, cfg)
@@ -153,7 +174,7 @@ def main() -> int:
         show_error(f"Vivatech ERP başlatılamadı.\n\n{e}")
         return 20
     if not wait_for_site(url, timeout):
-        show_error("ERPNext/Vivatech servisi zamanında hazır olmadı.\n\nRUNTIME klasöründeki durum ve log scriptlerini kontrol edin.")
+        show_error("ERPNext/Vivatech servisi zamanında hazır olmadı.\n\nRUNTIME\\first-run.log ve Docker loglarını kontrol edin.")
         return 30
     if cfg.get("open_browser", True):
         webbrowser.open(url)
