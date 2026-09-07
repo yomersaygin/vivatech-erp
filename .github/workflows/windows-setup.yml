@@ -1,0 +1,79 @@
+name: Vivatech Windows Setup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'EXE/**'
+      - 'CONFIG/**'
+      - 'RUNTIME/**'
+      - 'INSTALLER/**'
+      - '.github/workflows/windows-setup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-setup:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install PyInstaller
+        run: python -m pip install "pyinstaller>=6,<7"
+
+      - name: Build launcher EXE
+        shell: pwsh
+        working-directory: EXE
+        run: |
+          python -m PyInstaller --clean --noconfirm VivatechERP.spec
+          if (-not (Test-Path .\dist\VivatechERP.exe)) { throw 'VivatechERP.exe was not created' }
+
+      - name: Validate packaged support files
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .\CONFIG\vivatech.json)) { throw 'CONFIG/vivatech.json missing' }
+          if (-not (Test-Path .\RUNTIME\FIRST-RUN-SETUP.ps1)) { throw 'RUNTIME/FIRST-RUN-SETUP.ps1 missing' }
+          $null = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\RUNTIME\FIRST-RUN-SETUP.ps1), [ref]$null, [ref]$null)
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' '.\INSTALLER\VivatechERP.iss'
+          if (-not (Test-Path .\INSTALLER\output\VivatechERP-Setup.exe)) { throw 'VivatechERP-Setup.exe was not created' }
+
+      - name: Silent installer smoke test
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:TEMP 'VivatechERP-Smoke'
+          Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
+          $p = Start-Process '.\INSTALLER\output\VivatechERP-Setup.exe' -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$target") -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Installer exit code: $($p.ExitCode)" }
+          @('VivatechERP.exe','CONFIG\vivatech.json','RUNTIME\FIRST-RUN-SETUP.ps1') | ForEach-Object {
+            if (-not (Test-Path (Join-Path $target $_))) { throw "Installed file missing: $_" }
+          }
+
+      - name: Generate SHA256
+        shell: pwsh
+        run: |
+          (Get-FileHash .\INSTALLER\output\VivatechERP-Setup.exe -Algorithm SHA256).Hash | Set-Content .\INSTALLER\output\VivatechERP-Setup.exe.sha256
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VivatechERP-Windows-Setup
+          path: |
+            INSTALLER/output/VivatechERP-Setup.exe
+            INSTALLER/output/VivatechERP-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
