@@ -37,10 +37,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Vivatech ERP'yi başlat"; Flags
 
 [Code]
 function InitializeSetup(): Boolean;
-var
-  ResultCode: Integer;
 begin
   Result := True;
+  if WizardSilent then
+    exit;
   if not FileExists(ExpandConstant('{pf}\Docker\Docker\Docker Desktop.exe')) then
   begin
     if MsgBox('Vivatech ERP, mevcut mimaride Docker Desktop gerektirir.' + #13#10 + #13#10 +
