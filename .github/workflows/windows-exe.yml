@@ -1,0 +1,91 @@
+name: Vivatech Windows EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'EXE/**'
+      - '.github/workflows/windows-exe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install PyInstaller
+        run: python -m pip install "pyinstaller>=6,<7"
+
+      - name: Build VivatechERP.exe
+        shell: pwsh
+        working-directory: EXE
+        run: |
+          python -m PyInstaller --clean --noconfirm VivatechERP.spec
+          if (-not (Test-Path .\dist\VivatechERP.exe)) { throw 'VivatechERP.exe was not created' }
+
+      - name: Prepare launcher smoke-test config
+        shell: pwsh
+        working-directory: EXE
+        run: |
+          New-Item -ItemType Directory -Force .\dist\CONFIG | Out-Null
+          @'
+          {
+            "url": "http://127.0.0.1:8765",
+            "health_timeout_seconds": 15,
+            "open_browser": false
+          }
+          '@ | Set-Content -Encoding UTF8 .\dist\CONFIG\vivatech.json
+          @'
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          class H(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path == '/api/method/ping':
+                      body=b'{"message":"pong"}'
+                      self.send_response(200)
+                      self.send_header('Content-Type','application/json')
+                      self.send_header('Content-Length',str(len(body)))
+                      self.end_headers()
+                      self.wfile.write(body)
+                  else:
+                      self.send_response(404); self.end_headers()
+              def log_message(self, *args): pass
+          HTTPServer(('127.0.0.1',8765),H).serve_forever()
+          '@ | Set-Content -Encoding UTF8 .\fake_ping.py
+
+      - name: Smoke test frozen EXE on Windows
+        shell: pwsh
+        working-directory: EXE
+        run: |
+          $server = Start-Process python -ArgumentList '.\fake_ping.py' -PassThru -WindowStyle Hidden
+          try {
+            Start-Sleep -Seconds 2
+            $p = Start-Process '.\dist\VivatechERP.exe' -PassThru -Wait
+            if ($p.ExitCode -ne 0) { throw "VivatechERP.exe exit code: $($p.ExitCode)" }
+          } finally {
+            if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+          }
+
+      - name: Generate SHA256
+        shell: pwsh
+        working-directory: EXE
+        run: |
+          (Get-FileHash .\dist\VivatechERP.exe -Algorithm SHA256).Hash | Set-Content .\dist\VivatechERP.exe.sha256
+
+      - name: Upload Windows EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VivatechERP-Windows-EXE
+          path: |
+            EXE/dist/VivatechERP.exe
+            EXE/dist/VivatechERP.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
