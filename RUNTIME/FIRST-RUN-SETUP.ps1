@@ -3,10 +3,12 @@ $ErrorActionPreference = 'Stop'
 $AppRoot = Split-Path -Parent $PSScriptRoot
 $RuntimeRoot = $PSScriptRoot
 $FrappeDir = Join-Path $RuntimeRoot 'frappe_docker'
-$ZipPath = Join-Path $RuntimeRoot 'frappe_docker.zip'
+$BundledZip = Join-Path $RuntimeRoot 'BUNDLED\frappe_docker.zip'
+$DownloadZip = Join-Path $RuntimeRoot 'frappe_docker.zip'
 $ExtractRoot = Join-Path $RuntimeRoot '_frappe_extract'
 $AppsJson = Join-Path $RuntimeRoot 'apps.json'
 $LogPath = Join-Path $RuntimeRoot 'first-run.log'
+$MarkerPath = Join-Path $RuntimeRoot '.vivatech-installed'
 $Project = 'vivatech'
 $Site = 'vivatech.localhost'
 $DbPassword = 'admin'
@@ -41,20 +43,36 @@ function Require-Docker {
 
 function Ensure-FrappeDocker {
     if (Test-Path (Join-Path $FrappeDir 'compose.yaml')) { return }
-    Log 'Frappe Docker indiriliyor...'
-    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+
     Remove-Item $ExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
-    Invoke-WebRequest -Uri 'https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip' -OutFile $ZipPath
-    Expand-Archive -Path $ZipPath -DestinationPath $ExtractRoot -Force
+    Remove-Item $DownloadZip -Force -ErrorAction SilentlyContinue
+
+    $zipToUse = $null
+    if (Test-Path $BundledZip) {
+        Log 'Paket icindeki Frappe Docker dosyalari kullaniliyor...'
+        $zipToUse = $BundledZip
+    } else {
+        Log 'Paketlenmis runtime bulunamadi, Frappe Docker indiriliyor...'
+        Invoke-WebRequest -Uri 'https://github.com/frappe/frappe_docker/archive/refs/heads/main.zip' -OutFile $DownloadZip
+        $zipToUse = $DownloadZip
+    }
+
+    Expand-Archive -Path $zipToUse -DestinationPath $ExtractRoot -Force
     $source = Get-ChildItem $ExtractRoot -Directory | Select-Object -First 1
     if (-not $source) { throw 'frappe_docker arsivi acilamadi.' }
     Remove-Item $FrappeDir -Recurse -Force -ErrorAction SilentlyContinue
     Move-Item $source.FullName $FrappeDir
     Remove-Item $ExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+    Remove-Item $DownloadZip -Force -ErrorAction SilentlyContinue
 }
 
 function Build-VivatechImage {
+    docker image inspect vivatech-erp:local *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Log 'Vivatech ERP Docker image mevcut, tekrar build edilmiyor.'
+        return
+    }
+
     $apps = @'
 [
   {"url":"https://github.com/frappe/erpnext","branch":"version-16"},
@@ -68,6 +86,9 @@ function Build-VivatechImage {
 }
 
 function Prepare-Compose {
+    $composeOut = Join-Path $FrappeDir 'compose.vivatech.yaml'
+    if (Test-Path $composeOut) { return }
+
     $envFile = Join-Path $FrappeDir '.env'
     @"
 CUSTOM_IMAGE=vivatech-erp
@@ -104,21 +125,27 @@ function Ensure-Site {
     Push-Location $FrappeDir
     try {
         $sites = docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench list-sites 2>$null
-        if ($sites -notcontains $Site) {
+        $siteText = ($sites -join "`n")
+        if ($siteText -notmatch [regex]::Escape($Site)) {
             Log 'Vivatech ERP sitesi olusturuluyor...'
             docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench new-site $Site --db-host db --db-root-username root --db-root-password $DbPassword --admin-password $AdminPassword --no-mariadb-socket
             if ($LASTEXITCODE -ne 0) { throw 'Site olusturulamadi.' }
         }
+
         $apps = docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench --site $Site list-apps 2>$null
-        if ($apps -notmatch 'erpnext') {
+        $appsText = ($apps -join "`n")
+        if ($appsText -notmatch '(?m)^erpnext\s*$') {
             docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench --site $Site install-app erpnext
             if ($LASTEXITCODE -ne 0) { throw 'ERPNext kurulumu basarisiz.' }
         }
+
         $apps = docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench --site $Site list-apps 2>$null
-        if ($apps -notmatch 'vivatech_erp') {
+        $appsText = ($apps -join "`n")
+        if ($appsText -notmatch '(?m)^vivatech_erp\s*$') {
             docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench --site $Site install-app vivatech_erp
             if ($LASTEXITCODE -ne 0) { throw 'Vivatech ERP uygulamasi kurulamadi.' }
         }
+
         docker compose -p $Project -f compose.vivatech.yaml exec -T backend bench --site $Site migrate
         if ($LASTEXITCODE -ne 0) { throw 'Migration basarisiz.' }
     } finally { Pop-Location }
@@ -126,6 +153,11 @@ function Ensure-Site {
 
 try {
     New-Item -ItemType Directory -Force $RuntimeRoot | Out-Null
+    if (Test-Path $MarkerPath) {
+        Log 'Vivatech ERP ilk kurulumu daha once tamamlanmis.'
+        exit 0
+    }
+
     Set-Content -Path $LogPath -Value "Vivatech ERP ilk kurulum - $(Get-Date -Format s)" -Encoding UTF8
     Require-Docker
     Ensure-FrappeDocker
@@ -133,9 +165,11 @@ try {
     Prepare-Compose
     Start-Stack
     Ensure-Site
+    Set-Content -Path $MarkerPath -Value (Get-Date -Format s) -Encoding UTF8
     Log 'Vivatech ERP ilk kurulumu tamamlandi.'
     exit 0
 } catch {
+    Remove-Item $MarkerPath -Force -ErrorAction SilentlyContinue
     Log ("HATA: " + $_.Exception.Message)
     Write-Error $_
     exit 1
