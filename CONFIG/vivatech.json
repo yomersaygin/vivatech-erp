@@ -1,0 +1,8 @@
+{
+  "url": "http://localhost:8080",
+  "runtime_dir": "RUNTIME/frappe_docker",
+  "compose_file": "compose.vivatech.yaml",
+  "compose_project": "vivatech",
+  "health_timeout_seconds": 300,
+  "open_browser": true
+}
